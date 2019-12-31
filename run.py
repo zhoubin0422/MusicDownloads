@@ -5,6 +5,7 @@
 
 import requests
 import json
+import os
 
 from config import PHONE, PASSWORD
 
@@ -12,7 +13,7 @@ from config import PHONE, PASSWORD
 class Musics(object):
 
     _server = 'http://127.0.0.1:3000'
-
+    _filepath = os.path.dirname(__file__)
     @property
     def login(self):
         """
@@ -78,20 +79,25 @@ class Musics(object):
                     record = {
                         'id': i['id'],
                         'name': i['name'],
-                        'br': i['h']['br']
+                        'singer': i['ar'][0]['name'],
+                        'br': i['h']['br'],
+                        'url': ''
                     }
                     song_list.append(record)
                 elif i['m']:
                     record = {
                         'id': i['id'],
                         'name': i['name'],
-                        'br': i['m']['br']
+                        'singer': i['ar'][0]['name'],
+                        'br': i['m']['br'],
+                        'url': ''
                     }
                     song_list.append(record)
                 else:
                     record = {
                         'id': i['id'],
                         'name': i['name'],
+                        'singer': i['ar'][0]['name'],
                         'br': i['l']['br'],
                         'url': ''
                     }
@@ -124,27 +130,56 @@ class Musics(object):
             data = json.loads(response.text)
             return data['data']
 
+    def make_new_song_list(self, mid):
+        """
+        提取有效的歌曲，组合成有版权的歌单
+        :return:
+        """
+        self.mid = mid
+        new_song_list = []
+        print('正在提取有效歌曲...')
+        song_mapping = self.get_sid(self.mid)
+        for song in song_mapping:
+            status = self.vail_song(song['id'])
+            if status == True:
+                url = self.get_song_url(song['id'])
+                record = {
+                    'id': song['id'],
+                    'name': song['name'],
+                    'singer': song['singer'],
+                    'br': song['br'],
+                    'url': url[0]['url']
+                }
+                print('添加歌曲 "{}" '.format(song['name']))
+                new_song_list.append(record)
+        print('所有有效歌曲添加完成...')
+        return new_song_list
+
+    def downloads(self, mid):
+        """
+        下载音乐
+        :return:
+        """
+        self.mid = mid
+        songs = self.make_new_song_list(self.mid)
+        print('开始下载歌曲...')
+        for song in songs:
+            name = song['name'] + '-' + song['singer'] + '.mp3'
+            print('正在下载 {} ...'.format(name))
+            url = song['url']
+            if url:
+                response = self.login.get(url)
+                if response.status_code == 200:
+                    with open(os.path.join(self._filepath, 'musics', name), 'wb') as f:
+                        f.write(response.content)
+
 
 if __name__ == '__main__':
     m = Musics()
     ret = m.status
     uid = ret['profile']['userId']  # 获取用户 ID
     music_mapping = m.get_mid(uid)  # 获取歌单列表
-    print(music_mapping)
-    song_mapping = m.get_sid(974291055)     # 获取某歌单中的歌曲列表
-    print(song_mapping)
-    new_song_list = []
-    # 验证歌曲是否可用
-    for song in song_mapping:
-        status = m.vail_song(song['id'])
-        if status == True:
-            #print('正在添加歌曲 "{}" ...'.format(song['name']))
-            urls = m.get_song_url(song['id'])
-            record = {
-                'id': song['id'],
-                'name': song['name'],
-                'br': song['br'],
-                'url': urls
-            }
-            new_song_list.append(record)
-    print(new_song_list)
+    m.downloads(974291055)
+    # song_mapping = m.make_new_song_list(974291055)     # 获取某歌单中的歌曲列表
+    # for i in song_mapping:
+    #     print(i)
