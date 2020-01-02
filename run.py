@@ -13,7 +13,11 @@ from config import PHONE, PASSWORD
 class Musics(object):
 
     _server = 'http://127.0.0.1:3000'
-    _filepath = os.path.dirname(__file__)
+    _filepath = os.path.join(os.path.dirname(__file__), 'musics')
+
+    def __init__(self):
+        if not os.path.exists(self._filepath):
+            os.mkdir(self._filepath)
 
     @property
     def login(self):
@@ -145,7 +149,7 @@ class Musics(object):
         response = requests.get(url)
         if response.status_code == 200:
             print('正在下载歌曲 {} ...'.format(filename))
-            with open(os.path.join(self._filepath, 'musics', filename), 'wb') as f:
+            with open(os.path.join(self._filepath, filename), 'wb') as f:
                 f.write(response.content)
 
     def downloads(self, mid):
@@ -156,13 +160,13 @@ class Musics(object):
         songs = self.make_new_song_list(mid)
         print('开始下载歌曲...')
         for song in songs:
-            name = song['name'] + '-' + song['singer'] + '.mp3'
-            print('正在下载 {} ...'.format(name))
+            filename = song['name'] + '-' + song['singer'] + '.mp3'
+            print('正在下载 {} ...'.format(filename))
             url = song['url']
             if url:
                 response = self.login.get(url)
                 if response.status_code == 200:
-                    with open(os.path.join(self._filepath, 'musics', name), 'wb') as f:
+                    with open(os.path.join(self._filepath, filename), 'wb') as f:
                         f.write(response.content)
 
 
